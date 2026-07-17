@@ -40,7 +40,7 @@ def get_converter(name: str, params: dict[str, Any]) -> BaseConverter:
     """
     if name not in _REGISTRY:
         raise ValueError(f"No converter registered for driver '{name}'")
-    return _REGISTRY[name](params=params)
+    return _REGISTRY[name](**params)
 
 
 def list_converters() -> list[str]:
