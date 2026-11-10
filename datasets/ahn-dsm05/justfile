@@ -1,0 +1,39 @@
+# Actueel Hoogtebestand Nederland (AHN4) - Digital Surface Model 50 cm
+
+import '../../lib.just'
+
+raw := bucket / "ahn/4/raw/DSM05"
+out := bucket / "ahn/4/DSM05"
+
+# all variants, plus the virtual Zarr stores for COG-400-LZW
+[default]
+all: (variant "2000" "LZW") (variant "2000" "DEFLATE") (variant "400" "LZW") (variant "400" "DEFLATE") (virtual "400" "LZW")
+
+# all outputs for one blocksize / compression
+variant blocksize compress: (stac blocksize compress) (vrt blocksize compress) (mosaic blocksize compress)
+
+# download DSM05 tiles (and point clouds) with ahn-cli (https://github.com/CLOUD-NES/ahn-stac/tree/main/tools/ahn-cli)
+raw:
+    ahn download --ahn-version 4 --bbox 5.085297 52.050390 5.197220 52.117516 \
+      --destination {{parent_directory(raw)}} --asset-key DSM05 --asset-key PC \
+      --output {{parent_directory(raw)}}/items.parquet
+
+cog blocksize compress: \
+    (cog-tiles (raw / "*.TIF") (out / "COG-" + blocksize + "-" + compress) blocksize compress)
+
+stac blocksize compress: (cog blocksize compress) \
+    (stac-items (out / "COG-" + blocksize + "-" + compress / "*.TIF") (out / "items-" + blocksize + "-" + compress + ".parquet"))
+
+vrt blocksize compress: (cog blocksize compress) \
+    (vrt-mosaic (out / "COG-" + blocksize + "-" + compress / "*.TIF") (out / "VRT-" + blocksize + "-" + compress + "-mosaic.VRT"))
+
+mosaic blocksize compress: \
+    (cog-mosaic (raw / "*.TIF") (out / "COG-" + blocksize + "-" + compress + "-mosaic.TIF") blocksize compress)
+
+# virtual Zarr store (kerchunk JSON + Parquet, Icechunk) referencing the COG tiles
+virtual blocksize compress: (cog blocksize compress)
+    python {{scripts}}/tiff_to_virtual_zarr.py "{{out}}/COG-{{blocksize}}-{{compress}}/*.TIF" {{overwrite}} \
+      --json "{{out}}/refs-COG-{{blocksize}}-{{compress}}.json" \
+      --parquet "{{out}}/refs-COG-{{blocksize}}-{{compress}}.parquet" \
+      --icechunk "{{out}}/COG-{{blocksize}}-{{compress}}-icechunk" \
+      --message "data for COG-{{blocksize}}-{{compress}}"

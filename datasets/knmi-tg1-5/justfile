@@ -1,0 +1,33 @@
+# KNMI gridded daily precipitation (Tg1, version 5)
+
+import '../../lib.just'
+
+raw := bucket / "knmi/Tg1/5/raw"
+out := bucket / "knmi/Tg1/5"
+local := source_directory() / "../../data/knmi/Tg1/5"
+
+[default]
+all: (zarr "2025") (zarr-rechunked "2025") (virtual "2025")
+
+# Download NetCDF files locally with knmi-downloader (https://github.com/CLOUD-NES/knmi-downloader):
+#   export KNMI_API_TOKEN=<TOKEN> KNMI_DATA_PATH=$PWD/data/knmi
+#   python download.py Tg1 5 2025-01-01T00:00:00Z 2026-01-03T00:00:00Z
+# upload the NetCDF files downloaded in data/knmi/Tg1/5
+raw:
+    gdal vsi copy --recursive "{{local}}/" "{{replace(raw, 's3://', '/vsis3/')}}/"
+
+zarr year:
+    {{skip}} "{{out}}/tg1-5-{{year}}.zarr" || python {{scripts}}/netcdf_to_zarr.py \
+      "{{raw}}/{{year}}*/*.nc" "{{out}}/tg1-5-{{year}}.zarr"
+
+zarr-rechunked year:
+    {{skip}} "{{out}}/tg1-5-{{year}}_chunks-time-1.zarr" || python {{scripts}}/netcdf_to_zarr.py \
+      "{{raw}}/{{year}}*/*.nc" "{{out}}/tg1-5-{{year}}_chunks-time-1.zarr" --chunks time=-1,x=100,y=100
+
+# ponytail: no append; adding a new year to an existing Icechunk repo needs an --append mode in netcdf_to_virtual_zarr.py
+# virtual Zarr store (kerchunk JSON + Parquet, Icechunk) referencing the NetCDF files
+virtual year:
+    python {{scripts}}/netcdf_to_virtual_zarr.py "{{raw}}/{{year}}*/*.nc" {{overwrite}} \
+      --skip-variables iso_dataset product projection \
+      --json "{{out}}/refs.json" --parquet "{{out}}/refs.parquet" --icechunk "{{out}}/icechunk" \
+      --message "data for {{year}}"
