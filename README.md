@@ -1,4 +1,4 @@
-# CLOUD-NES datasets
+# CLOUD-NES Benchmark Datasets
 
 Build the CLOUD-NES benchmark datasets: convert existing raster, vector and tensor datasets to cloud-native
 formats (COG, GeoParquet, Zarr, virtual Zarr) and catalogue them (STAC) on S3 object storage.

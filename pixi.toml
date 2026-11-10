@@ -1,5 +1,5 @@
 [workspace]
-name = "datasets"
+name = "benchmark-datasets"
 authors = ["Francesco Nattino <f.nattino@esciencecenter.nl>"]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64"]
