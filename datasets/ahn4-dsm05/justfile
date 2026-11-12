@@ -12,11 +12,8 @@ all: (variant "2000" "LZW") (variant "2000" "DEFLATE") (variant "400" "LZW") (va
 # all outputs for one blocksize / compression
 variant blocksize compress: (stac blocksize compress) (vrt blocksize compress) (mosaic blocksize compress)
 
-# download DSM05 tiles (and point clouds) with ahn-cli (https://github.com/CLOUD-NES/ahn-stac/tree/main/tools/ahn-cli)
-raw:
-    ahn download --ahn-version 4 --bbox 5.085297 52.050390 5.197220 52.117516 \
-      --destination {{parent_directory(raw)}} --asset-key DSM05 --asset-key PC \
-      --output {{parent_directory(raw)}}/items.parquet
+# stream the DSM05 tiles listed in urls.txt to the bucket
+raw: (upload-urls (source_directory() / "urls.txt") raw)
 
 cog blocksize compress: \
     (cog-tiles (raw / "*.TIF") (out / "COG-" + blocksize + "-" + compress) blocksize compress)

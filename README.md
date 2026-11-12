@@ -31,9 +31,9 @@ BUCKET="cloud-nes-benchmarks-tmp"
 
 ```bash
 just                                    # list datasets and their recipes
-just ahn-dsm05                          # build all missing outputs of a dataset
-just ahn-dsm05 cog 2000 LZW             # build one output
-just --dry-run ahn-dsm05 vrt 400 LZW    # print the commands without running them
+just ahn4-dsm05                         # build all missing outputs of a dataset
+just ahn4-dsm05 cog 2000 LZW            # build one output
+just --dry-run ahn4-dsm05 vrt 400 LZW   # print the commands without running them
 FORCE=1 just brp-2025 geoparquet 2.0 10000   # rebuild, even if the output exists
 ```
 
