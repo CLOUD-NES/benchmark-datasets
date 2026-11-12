@@ -14,7 +14,7 @@ all: (zarr "2025") (zarr-rechunked "2025") (virtual "2025")
 #   python download.py Tg1 5 2025-01-01T00:00:00Z 2026-01-03T00:00:00Z
 # upload the NetCDF files downloaded in data/knmi/Tg1/5
 raw:
-    gdal vsi copy --recursive "{{local}}/" "{{replace(raw, 's3://', '/vsis3/')}}/"
+    {{s5}} cp "{{local}}/*" "{{raw}}/"
 
 zarr year:
     {{skip}} "{{out}}/tg1-5-{{year}}.zarr" || python {{scripts}}/netcdf_to_zarr.py \

@@ -6,12 +6,12 @@
 set dotenv-load
 
 scripts := source_directory() / "scripts"
-s3 := "python " + scripts / "s3.py"
+s5 := "s5cmd" + if env("AWS_ENDPOINT_URL", "") != "" { " --endpoint-url " + env("AWS_ENDPOINT_URL") } else { "" }
 bucket := "s3://" + env("BUCKET", "cloud-nes-benchmarks-tmp")
 force := env("FORCE", "")
 
 # `{{skip}} DST || cmd` runs cmd only if DST is missing (or FORCE is set)
-skip := if force == "" { s3 + " exists" } else { "false" }
+skip := if force == "" { s5 + " ls >/dev/null 2>&1" } else { "false" }
 overwrite := if force == "" { "" } else { "--overwrite" }
 
 # N → N: one COG per source file
@@ -19,7 +19,7 @@ overwrite := if force == "" { "" } else { "--overwrite" }
 cog-tiles src_glob dst_dir blocksize="512" compress="LZW" bigtiff="NO":
     #!/usr/bin/env bash
     set -euo pipefail
-    for src in $({{s3}} ls "{{src_glob}}"); do
+    for src in $({{s5}} ls --show-fullpath "{{src_glob}}"); do
       dst="{{dst_dir}}/$(basename "$src")"
       {{skip}} "$dst" && continue
       gdal raster translate --output-format COG --overwrite \
@@ -32,13 +32,13 @@ cog-tiles src_glob dst_dir blocksize="512" compress="LZW" bigtiff="NO":
 cog-mosaic src_glob dst blocksize="512" compress="LZW" bigtiff="NO":
     {{skip}} "{{dst}}" || gdal raster mosaic --output-format COG --overwrite \
       --co BLOCKSIZE={{blocksize}} --co COMPRESS={{compress}} --co BIGTIFF={{bigtiff}} \
-      $({{s3}} ls --vsi "{{src_glob}}") "{{replace(dst, 's3://', '/vsis3/')}}"
+      $({{s5}} ls --show-fullpath "{{src_glob}}" | sed 's|^s3://|/vsis3/|') "{{replace(dst, 's3://', '/vsis3/')}}"
 
 # N → 1: VRT mosaic
 [private]
 vrt-mosaic src_glob dst:
     {{skip}} "{{dst}}" || gdal raster mosaic --output-format VRT --overwrite \
-      $({{s3}} ls --vsi "{{src_glob}}") "{{replace(dst, 's3://', '/vsis3/')}}"
+      $({{s5}} ls --show-fullpath "{{src_glob}}" | sed 's|^s3://|/vsis3/|') "{{replace(dst, 's3://', '/vsis3/')}}"
 
 # N → 1: STAC items (rio-stac) as stac-geoparquet, with public HTTPS asset hrefs
 [private]
@@ -61,5 +61,5 @@ upload-urls url_file dst_dir:
       [[ -z "$url" ]] && continue
       dst="{{dst_dir}}/$(basename "$url")"
       {{skip}} "$dst" && continue
-      gdal vsi copy "/vsicurl/$url" "/vsis3/${dst#s3://}"
+      curl -fsSL "$url" | {{s5}} pipe "$dst"
     done < "{{url_file}}"
