@@ -1,6 +1,6 @@
 # Basisregistratie Gewaspercelen (BRP) 2025
 
-import '../../lib.just'
+import '../../common.just'
 
 raw := bucket / "data/pdok/brpgewaspercelen_definitief_2025.gpkg"
 out := bucket / "pdok"

@@ -1,6 +1,6 @@
 # Beeldmateriaal (BM) high-resolution aerial images 2024 (winter, "O"), RGB
 
-import '../../lib.just'
+import '../../common.just'
 
 raw := bucket / "bm-hrl/2024O/raw/RGB"
 out := bucket / "bm-hrl/2024O/RGB"

@@ -1,6 +1,6 @@
 # KNMI gridded daily precipitation (Tg1, version 5)
 
-import '../../lib.just'
+import '../../common.just'
 
 raw := bucket / "knmi/Tg1/5/raw"
 out := bucket / "knmi/Tg1/5"

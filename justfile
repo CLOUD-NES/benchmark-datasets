@@ -1,5 +1,5 @@
 # Build the CLOUD-NES datasets: `just <dataset>` builds all missing outputs, `just <dataset> <recipe> [args]` one.
-# See lib.just for the BUCKET and FORCE environment variables.
+# See common.just for the BUCKET and FORCE environment variables.
 
 set dotenv-load
 

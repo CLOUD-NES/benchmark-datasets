@@ -1,6 +1,6 @@
 # Actueel Hoogtebestand Nederland (AHN4) - Digital Surface Model 50 cm
 
-import '../../lib.just'
+import '../../common.just'
 
 raw := bucket / "ahn/4/raw/DSM05"
 out := bucket / "ahn/4/DSM05"

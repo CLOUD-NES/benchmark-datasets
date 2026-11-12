@@ -43,7 +43,7 @@ how the source data is uploaded to the bucket.
 ## Layout
 
 - `justfile`: one module per dataset.
-- `lib.just`: shared variables (`bucket`, `FORCE`) and recipes (COG tiles/mosaic, VRT, STAC items, GeoParquet,
+- `common.just`: shared variables (`bucket`, `FORCE`) and recipes (COG tiles/mosaic, VRT, STAC items, GeoParquet,
   URL upload), imported by every dataset.
 - `datasets/<name>/justfile`: dataset paths, variants and custom steps.
 - `scripts/`: Python scripts for the steps that are more than a single command (STAC, Zarr, virtual Zarr).
