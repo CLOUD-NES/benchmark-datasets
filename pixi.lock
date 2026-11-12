@@ -154,7 +154,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/nlohmann_json-3.12.0-h54a6638_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/numcodecs-0.17.1-py314h12ceea2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/numpy-2.5.4-py314hd3a7d6b_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/obstore-0.11.1-py314hdb4c9e8_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/obstore-0.12.1-py314hdb4c9e8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openjpeg-2.5.4-heb1ab33_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openssl-3.6.5-h781a0a9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/orc-2.3.1-h7b2d648_2.conda
@@ -535,7 +535,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/nlohmann_json-3.12.0-h784d473_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/numcodecs-0.17.1-py314hdd70a12_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/numpy-2.5.4-py314he06036b_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/obstore-0.11.1-py314hc05279b_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/obstore-0.12.1-py314h31bdfe6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openjpeg-2.5.4-h4d1e80c_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openssl-3.6.5-h55eecbc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/orc-2.3.1-hec29c44_2.conda
@@ -723,7 +723,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/nlohmann_json-3.12.0-h54a6638_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/numcodecs-0.17.1-py314h12ceea2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/numpy-2.5.4-py314hd3a7d6b_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/obstore-0.11.1-py314hdb4c9e8_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/obstore-0.12.1-py314hdb4c9e8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openjpeg-2.5.4-heb1ab33_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/openssl-3.6.5-h781a0a9_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/orc-2.3.1-h7b2d648_2.conda
@@ -1105,7 +1105,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/nlohmann_json-3.12.0-h784d473_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/numcodecs-0.17.1-py314hdd70a12_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/numpy-2.5.4-py314he06036b_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/obstore-0.11.1-py314hc05279b_1.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/obstore-0.12.1-py314h31bdfe6_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openjpeg-2.5.4-h4d1e80c_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openssl-3.6.5-h55eecbc_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/orc-2.3.1-hec29c44_2.conda
@@ -1735,6 +1735,7 @@ packages:
   - numpy >=1.25,<3
   - python_abi 3.14.* *_cp314
   license: MIT
+  license_family: MIT
   purls:
   - pkg:pypi/gdal?source=hash-mapping
   run_exports: {}
@@ -3468,9 +3469,9 @@ packages:
     - numpy >=1.25,<3
   size: 9406761
   timestamp: 1791675316116
-- conda: https://conda.anaconda.org/conda-forge/linux-64/obstore-0.11.1-py314hdb4c9e8_1.conda
-  sha256: 946c276bb932ca964436141bd2377c6d8bc5aec69401e8faaa9bf75510d4e786
-  md5: 8db527a6f73e0ca43b523a735d61229d
+- conda: https://conda.anaconda.org/conda-forge/linux-64/obstore-0.12.1-py314hdb4c9e8_0.conda
+  sha256: 36dfb531479e77e049b06e381db12a0c3943b0e8f4586600be89bba9fd32b567
+  md5: 39b9a67de914f88bfe023feb47f91fcb
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=15
@@ -3483,8 +3484,8 @@ packages:
   purls:
   - pkg:pypi/obstore?source=hash-mapping
   run_exports: {}
-  size: 4118195
-  timestamp: 1788653792013
+  size: 4125054
+  timestamp: 1793151149643
 - conda: https://conda.anaconda.org/conda-forge/linux-64/openjpeg-2.5.4-heb1ab33_2.conda
   sha256: 131688a88bea8da92fe418c4558c5073435e2848911bc4c836c3a9dd5994b4aa
   md5: a3f3ac7a68d01c198e276dbb99e62032
@@ -6370,6 +6371,7 @@ packages:
   - python_abi 3.14.* *_cp314
   - numpy >=1.25,<3
   license: MIT
+  license_family: MIT
   purls:
   - pkg:pypi/gdal?source=hash-mapping
   run_exports: {}
@@ -7895,13 +7897,12 @@ packages:
     - numpy >=1.25,<3
   size: 7284786
   timestamp: 1791675323083
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/obstore-0.11.1-py314hc05279b_1.conda
-  sha256: a567b9191dd1ff631abde651b8acacf711d4c189dc2c2bceb584038919638c21
-  md5: f9f2501d3aedd94912e5c187624b13be
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/obstore-0.12.1-py314h31bdfe6_0.conda
+  sha256: 24c053575569ffa7ab3701819bc2e2c17fb797e6c2d9d562cefa9570249711bb
+  md5: a199ebcd9f5f45d8e716886066cea7c8
   depends:
   - __osx >=11.0
   - python >=3.14,<3.15.0a0
-  - python >=3.14,<3.15.0a0 *_cp314
   - python_abi 3.14.* *_cp314
   constrains:
   - __osx >=11.0
@@ -7910,8 +7911,8 @@ packages:
   purls:
   - pkg:pypi/obstore?source=hash-mapping
   run_exports: {}
-  size: 3357835
-  timestamp: 1788654931327
+  size: 3371858
+  timestamp: 1793150990421
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/openjpeg-2.5.4-h4d1e80c_2.conda
   sha256: e71bd04b5d0e39f39a3c039d021d3b76cd65bee3032e7f859ab7082f0ace8be5
   md5: 487d92910109a711fdb77631bf1aabf0

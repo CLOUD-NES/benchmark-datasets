@@ -1,15 +1,6 @@
 name: dev
 
-on:
-  push:
-    paths:
-      - 'scripts/**'
-      - 'datasets/**'
-      - 'justfile'
-      - 'lib.just'
-      - 'ruff.toml'
-      - 'pixi.toml'
-      - 'pixi.lock'
+on: push
 
 jobs:
   lint:
