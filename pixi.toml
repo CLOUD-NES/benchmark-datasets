@@ -1,0 +1,38 @@
+[workspace]
+name = "benchmark-datasets"
+authors = ["Francesco Nattino <f.nattino@esciencecenter.nl>"]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[dependencies]
+python = ">=3.14.10,<3.15"
+just = ">=1.59.0,<2"
+gdal = ">=3.13.3,<4"
+s3fs = ">=2026.9.0,<2027"
+obstore = ">=0.12.1,<0.13"
+rio-stac = ">=0.12.0,<0.13"
+rustac = ">=0.9.19,<0.10"
+geoparquet-io = ">=1.7.0,<2"
+xarray = ">=2026.9.0,<2027"
+zarr = ">=3.4.2,<4"
+dask = ">=2026.8.0,<2027"
+scipy = ">=1.18.1,<2"
+virtualizarr = ">=2.8.0,<3"
+kerchunk = ">=0.2.10,<0.3"
+fastparquet = ">=2026.5.0,<2027"
+icechunk = ">=2.3.1,<3"
+s5cmd = ">=2.3.0,<3"
+
+[pypi-dependencies]
+virtual-tiff = ">=0.5.0, <0.6"
+obspec-utils = "*"
+
+[feature.dev.dependencies]
+ruff = ">=0.17.4,<0.18"
+
+[feature.dev.tasks]
+lint = "ruff check scripts/ && ruff format --check scripts/ && just --list --list-submodules"
+
+[environments]
+dev = { features = ["dev"], solve-group = "default" }
+default = { solve-group = "default" }

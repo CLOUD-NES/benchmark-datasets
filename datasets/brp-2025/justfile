@@ -1,0 +1,20 @@
+# Basisregistratie Gewaspercelen (BRP) 2025
+
+import '../../common.just'
+
+raw := bucket / "data/pdok/brpgewaspercelen_definitief_2025.gpkg"
+out := bucket / "pdok"
+
+# all GeoParquet variants
+[default]
+all: (geoparquet "1.1" "10000") (geoparquet "1.1" "50000") (geoparquet "1.1" "100000") (geoparquet "1.1" "500000") \
+     (geoparquet "2.0" "10000") (geoparquet "2.0" "50000") (geoparquet "2.0" "100000") (geoparquet "2.0" "500000")
+
+# stream the GeoPackage from PDOK to the bucket
+raw:
+    {{skip}} "{{raw}}" || curl -fsSL \
+      https://service.pdok.nl/rvo/gewaspercelen/atom/downloads/brpgewaspercelen_definitief_2025.gpkg \
+      | {{s5}} pipe "{{raw}}"
+
+geoparquet version row_group_size: \
+    (to-geoparquet (raw) (out / "brpgewaspercelen_2025_geoparquet" + version + "_row-group-size" + row_group_size + ".parquet") version row_group_size)
