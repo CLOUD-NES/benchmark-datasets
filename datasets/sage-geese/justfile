@@ -50,5 +50,5 @@ zarr-gdal src dst blocksize chunksize compress:
             "{{ replace(dst, 's3://', '/vsis3/') }}" \
         && gdal raster overview add \
             --resampling average \
-            --levels=2,4,8,16,32 \
+            --levels=2,4,8,16 \
             "{{ replace(dst, 's3://', '/vsis3/') }}"
