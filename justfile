@@ -7,6 +7,7 @@ mod ahn4-dsm05 'datasets/ahn4-dsm05/justfile'
 mod bm-2024O-rgb 'datasets/bm-2024O-rgb/justfile'
 mod brp-2025 'datasets/brp-2025/justfile'
 mod knmi-tg1-5 'datasets/knmi-tg1-5/justfile'
+mod sage-geese 'datasets/sage-geese/justfile'
 
 [private]
 default:
