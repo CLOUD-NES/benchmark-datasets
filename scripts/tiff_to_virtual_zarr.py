@@ -4,7 +4,7 @@ Adapted from https://github.com/CLOUD-NES/ahn-virtual-zarr (notebooks/build-virt
 Only the highest resolution (first IFD) is referenced. Each output is skipped if it already exists,
 unless --overwrite is given.
 
-    python tiff_to_virtual_zarr.py SRC_GLOB [--json DST] [--parquet DST] [--icechunk DST] [--overwrite]
+    python tiff_to_virtual_zarr.py SRC [--json DST] [--parquet DST] [--icechunk DST] [--overwrite]
 """
 
 import argparse
@@ -17,8 +17,7 @@ from obspec_utils.registry import ObjectStoreRegistry
 from virtual_tiff import VirtualTIFF
 from virtualizarr import open_virtual_dataset
 
-from common import missing_outputs, public_href, write_outputs
-from s3 import glob
+from common import glob, missing_outputs, public_href, write_outputs
 
 
 def _generate_coords(attrs, shape):
@@ -26,7 +25,7 @@ def _generate_coords(attrs, shape):
 
     Adapted from kerchunk: https://github.com/fsspec/kerchunk/blob/3cd5ddc/kerchunk/tiff.py#L110
     """
-    height, width = shape[-2:]
+    *_, height, width = shape
     xscale, yscale, zscale = attrs["model_pixel_scale"][:3]
     x0, y0, z0 = attrs["model_tiepoint"][3:6]
     out = {
@@ -45,7 +44,7 @@ def open_virtual_tiff(path, registry, parser):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("src_glob")
+    parser.add_argument("src")
     parser.add_argument("--json")
     parser.add_argument("--parquet")
     parser.add_argument("--icechunk")
@@ -57,11 +56,12 @@ if __name__ == "__main__":
     if not outputs:
         raise SystemExit(0)
 
-    bucket = f"s3://{urlsplit(args.src_glob).netloc}"
+    bucket = f"s3://{urlsplit(args.src).netloc}"
     registry = ObjectStoreRegistry({bucket: obstore.store.from_url(bucket)})
     tiff_parser = VirtualTIFF(ifd=0)
 
-    vds = [open_virtual_tiff(path, registry, tiff_parser) for path in glob(args.src_glob)]
-    vds = xarray.combine_by_coords(vds, join="outer", combine_attrs="drop_conflicts")
+    vds = [open_virtual_tiff(path, registry, tiff_parser) for path in glob(args.src)]
+    vds = xarray.combine_by_coords(vds, join="outer", combine_attrs="drop_conflicts") if len(vds) > 1 else vds[0]
     vds = vds.vz.rename_paths(public_href)
-    write_outputs(vds, outputs, args.src_glob, args.overwrite, args.message)
+
+    write_outputs(vds, outputs, args.src, args.overwrite, args.message)
