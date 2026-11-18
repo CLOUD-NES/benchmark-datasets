@@ -1,4 +1,4 @@
-"""Helpers shared by the virtual Zarr scripts."""
+"""Helpers shared by the scripts."""
 import os
 import tempfile
 from urllib.parse import urlsplit
@@ -34,6 +34,12 @@ def missing_outputs(outputs: dict[str, str | None], overwrite: bool = True) -> d
     return {k: v for k, v in outputs.items() if v and (overwrite or not S3_FILESYSTEM.exists(v))}
 
 
+def remove(uri: str) -> None:
+    """Delete an S3 prefix, if it exists."""
+    if S3_FILESYSTEM.exists(uri):
+        S3_FILESYSTEM.rm(uri, recursive=True)
+
+
 def write_outputs(vds, outputs: dict[str, str], src: str, overwrite: bool, message: str) -> None:
     """Persist a virtual dataset as kerchunk JSON, kerchunk Parquet and/or Icechunk repository."""
     if "json" in outputs:
@@ -53,8 +59,8 @@ def write_outputs(vds, outputs: dict[str, str], src: str, overwrite: bool, messa
 
 def create_icechunk_repo(uri: str, chunk_prefix: str, overwrite: bool) -> icechunk.Repository:
     """Create an Icechunk repository whose virtual chunks are read anonymously over HTTP(S)."""
-    if overwrite and S3_FILESYSTEM.exists(uri):
-        S3_FILESYSTEM.rm(uri, recursive=True)
+    if overwrite:
+        remove(uri)
     split = urlsplit(uri)
     storage = icechunk.s3_storage(bucket=split.netloc, prefix=split.path.strip("/"), from_env=True)
     config = icechunk.RepositoryConfig.default()

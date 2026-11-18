@@ -11,11 +11,11 @@ out := bucket / "sage-geese" / file_stem(dataset)
 [default]
 all: \
     (virtual-zarr "512" "ZSTD") \
-    (zarr "2048" "512" "BLOSC")
+    (zarr "2048" "512")
 
 cog blocksize compress: (cog-gdal f"{{ raw }}" f"{{ out }}/COG-{{ blocksize }}-{{ compress }}.tif" blocksize compress)
 
-zarr blocksize chunksize compress: (zarr-gdal f"{{ raw }}" f"{{ out }}/ZARR-{{ blocksize }}-{{ chunksize }}-{{ compress }}.zarr" blocksize chunksize compress)
+zarr blocksize chunksize: (geozarr f"{{ raw }}" f"{{ out }}/GEOZARR-{{ blocksize }}-{{ chunksize }}.zarr" blocksize chunksize)
 
 virtual-zarr blocksize compress: (cog blocksize compress)
     python {{ scripts }}/tiff_to_virtual_zarr.py \
@@ -35,20 +35,9 @@ cog-gdal src dst blocksize compress:
         "{{ replace(src, 's3://', '/vsis3/') }}" \
         "{{ replace(dst, 's3://', '/vsis3/') }}"
 
-zarr-gdal src dst blocksize chunksize compress:
-    {{ skip }} "{{ dst }}" \
-        || gdal raster translate \
-            --output-format ZARR \
-            --overwrite \
-            --co FORMAT=ZARR_V3 \
-            --co CREATE_CONSOLIDATED_METADATA=YES \
-            --co GEOREFERENCING_CONVENTION=SPATIAL_PROJ \
-            --co BLOCKSIZE="{{ blocksize }},{{ blocksize }}" \
-            --co SHARD_CHUNK_SHAPE="{{ chunksize }},{{ chunksize }}" \
-            --co COMPRESS="{{ compress }}" \
-            "{{ replace(src, 's3://', '/vsis3/') }}" \
-            "{{ replace(dst, 's3://', '/vsis3/') }}" \
-        && gdal raster overview add \
-            --resampling average \
-            --levels=2,4,8,16 \
-            "{{ replace(dst, 's3://', '/vsis3/') }}"
+geozarr  src dst blocksize chunksize:
+    {{ skip }} "{{ dst }}" || python {{ scripts }}/tiff_to_geozarr.py \
+        --shards {{ blocksize }} \
+        --chunks {{ chunksize }} \
+        --levels 2 4 8 16 \
+        "{{ src }}" "{{ dst }}"
