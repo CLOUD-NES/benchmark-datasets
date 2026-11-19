@@ -1,6 +1,6 @@
 """Create one STAC item per raster file with rio-stac and save them as a stac-geoparquet file.
 
-python stac_items.py [--public-hrefs] [--asset-media-type TYPE] SRC_GLOB DST
+python stac_items.py [--public-hrefs] [--asset-media-type TYPE] SRC DST
 """
 
 import argparse
@@ -10,19 +10,18 @@ import obstore
 import rio_stac
 import rustac
 
-from common import public_href
-from s3 import glob
+from common import glob, public_href
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("src_glob")
+    parser.add_argument("src")
     parser.add_argument("dst")
     parser.add_argument("--public-hrefs", action="store_true", help="use HTTPS hrefs for the assets")
     parser.add_argument("--asset-media-type")
     args = parser.parse_args()
 
     items = []
-    for src in glob(args.src_glob):
+    for src in glob(args.src):
         href = public_href(src) if args.public_hrefs else None
         item = rio_stac.create_stac_item(source=src, asset_href=href, asset_media_type=args.asset_media_type)
         items.append(item.to_dict())
