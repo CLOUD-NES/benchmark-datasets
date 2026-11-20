@@ -1,4 +1,5 @@
 """Helpers shared by the scripts."""
+
 import os
 import tempfile
 from urllib.parse import urlsplit
@@ -64,9 +65,9 @@ def create_icechunk_repo(uri: str, chunk_prefix: str, overwrite: bool) -> icechu
     split = urlsplit(uri)
     storage = icechunk.s3_storage(bucket=split.netloc, prefix=split.path.strip("/"), from_env=True)
     config = icechunk.RepositoryConfig.default()
-    config.set_virtual_chunk_container(icechunk.VirtualChunkContainer(
-        url_prefix=chunk_prefix, store=icechunk.http_store(), name="http"
-    ))
+    config.set_virtual_chunk_container(
+        icechunk.VirtualChunkContainer(url_prefix=chunk_prefix, store=icechunk.http_store(), name="http")
+    )
     repo = icechunk.Repository.create(
         storage=storage,
         config=config,
