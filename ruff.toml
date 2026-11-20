@@ -1,0 +1,17 @@
+line-length = 120
+
+[lint]
+select = [
+    "D",  # pydocstyle
+    "E",  # pycodestyle
+    "W",
+    "F",  # Pyflakes
+    "UP",  # pyupgrade
+    "B",  # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "I",  # isort
+]
+ignore = ["D100", "D103", "D203", "D213", "D413"]
+
+[lint.isort]
+known-first-party = ["common", "s3"]

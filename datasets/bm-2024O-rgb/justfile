@@ -1,0 +1,21 @@
+# Beeldmateriaal (BM) high-resolution aerial images 2024 (winter, "O"), RGB
+
+import '../../common.just'
+
+raw := bucket / "bm-hrl/2024O/raw/RGB"
+out := bucket / "bm-hrl/2024O/RGB"
+cogs := out / "COG-512-LZW"
+
+[default]
+all: stac vrt mosaic
+
+# stream the TIFF tiles listed in urls.txt to the bucket
+raw: (upload-urls (source_directory() / "urls.txt") raw)
+
+cog: (cog-tiles (raw / "*.tif") cogs "512" "LZW")
+
+stac: cog (stac-items (cogs / "*.tif") (out / "items-COG-512-LZW.parquet"))
+
+vrt: cog (vrt-mosaic (cogs / "*.tif") (out / "VRT-512-LZW-mosaic.VRT"))
+
+mosaic: cog (cog-mosaic (cogs / "*.tif") (out / "COG-512-LZW-mosaic.tif") "512" "LZW" "YES")

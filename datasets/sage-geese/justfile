@@ -1,0 +1,43 @@
+import "../../common.just"
+
+export CPL_VSIL_USE_TEMP_FILE_FOR_RANDOM_WRITE := "YES"
+export AWS_VIRTUAL_HOSTING := "FALSE"
+
+
+dataset := "pm25_exposure.tif"
+raw := bucket / "sage-geese/raw" / dataset
+out := bucket / "sage-geese" / file_stem(dataset)
+
+[default]
+all: \
+    (virtual-zarr "512" "ZSTD") \
+    (zarr "2048" "512")
+
+cog blocksize compress: (cog-gdal f"{{ raw }}" f"{{ out }}/COG-{{ blocksize }}-{{ compress }}.tif" blocksize compress)
+
+zarr blocksize chunksize: (geozarr f"{{ raw }}" f"{{ out }}/GEOZARR-{{ blocksize }}-{{ chunksize }}.zarr" blocksize chunksize)
+
+virtual-zarr blocksize compress: (cog blocksize compress)
+    python {{ scripts }}/tiff_to_virtual_zarr.py \
+     "{{ out }}/COG-{{ blocksize }}-{{ compress }}.tif" \
+      --json "{{ out }}/COG-{{ blocksize }}-{{ compress }}-refs.json" \
+      --parquet "{{ out }}/COG-{{ blocksize }}-{{ compress }}-refs.parquet" \
+      --icechunk "{{ out }}/COG-{{ blocksize }}-{{ compress }}-icechunk" \
+      --message "data for COG-{{ blocksize }}-{{ compress }}" \
+      {{ overwrite }}
+
+cog-gdal src dst blocksize compress:
+    {{ skip }} "{{ dst }}" || gdal raster translate \
+        --output-format COG \
+        --overwrite \
+        --co BLOCKSIZE="{{ blocksize }}" \
+        --co COMPRESS="{{ compress }}" \
+        "{{ replace(src, 's3://', '/vsis3/') }}" \
+        "{{ replace(dst, 's3://', '/vsis3/') }}"
+
+geozarr  src dst blocksize chunksize:
+    {{ skip }} "{{ dst }}" || python {{ scripts }}/tiff_to_geozarr.py \
+        --shards {{ blocksize }} \
+        --chunks {{ chunksize }} \
+        --levels 2 4 8 16 \
+        -- "{{ src }}" "{{ dst }}"
