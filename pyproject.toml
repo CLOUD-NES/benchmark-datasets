@@ -1,0 +1,40 @@
+[project]
+authors = [{name = "Francesco Nattino", email = "f.nattino@esciencecenter.nl"}]
+dependencies = [
+    "s3fs>=2026.9.0,<2027",
+    "obstore>=0.12.1,<0.13",
+    "rustac>=0.9.19,<0.10",
+    "xarray>=2026.9.0,<2027",
+    "zarr>=3.4.2,<4",
+    "virtualizarr>=2.8.0,<3",
+    "kerchunk>=0.2.10,<0.3",
+    "fastparquet>=2026.9.0,<2027",
+    "icechunk>=2.4.0,<3",
+    "virtual-tiff>=0.5.0,<0.6",
+    "obspec-utils>=0.9.0,<0.10",
+    "geozarr-toolkit>=0.1.2,<0.2",
+    "click>=8.5.1,<9",
+]
+name = "benchmark-datasets"
+requires-python = ">= 3.11"
+version = "0.1.0"
+
+[project.scripts]
+bench-data = "benchmark_datasets.cli:cli"
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.pypi-dependencies]
+benchmark_datasets = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+just = ">=1.59.0,<2"
+gdal = ">=3.13.3,<4"
