@@ -33,3 +33,64 @@ def cli(
         access_key_id=s3_access_key_id,
         secret_access_key=s3_secret_access_key,
     )
+
+
+@cli.group()
+
+def ahn(
+    s3_config: S3Config,
+    asset: str,
+    version: int,
+) -> None:
+    pass
+
+
+@ahn.command()
+@click.pass_obj
+def retrieve(
+    s3_config: S3Config,
+    bbox: list[float],
+) -> None:
+    pass
+
+@ahn.command()
+@click.pass_obj
+def cog_tiles(
+    s3_config: S3Config,
+    asset: str,
+    version: int,
+    creation_options: dict[str, str],
+) -> None:
+    pass
+
+
+@ahn.command()
+@click.pass_obj
+def cog_mosaic(
+    s3_config: S3Config,
+    asset: str,
+    version: int,
+    creation_options: dict[str, str],
+) -> None:
+    pass
+
+
+@ahn.command()
+@click.pass_obj
+def virtual_zarr(
+    s3_config: S3Config,
+    versions: list[int],
+    kerchunk_json: bool,
+    kerchunk_parquet: bool,
+    icechunk: bool,
+) -> None:
+    pass
+
+
+@ahn.command()
+@click.pass_obj
+def geozarr(
+    s3_config: S3Config,
+    asset: str,
+) -> None:
+    pass
