@@ -14,6 +14,8 @@ dependencies = [
     "obspec-utils>=0.9.0,<0.10",
     "geozarr-toolkit>=0.1.2,<0.2",
     "click>=8.5.1,<9",
+    "rioxarray",
+    "dask",
 ]
 name = "benchmark-datasets"
 requires-python = ">= 3.11"
@@ -35,6 +37,36 @@ benchmark_datasets = { path = ".", editable = true }
 
 [tool.pixi.tasks]
 
+[tool.pixi.feature.dev.dependencies]
+ruff = "*"
+
+[tool.pixi.feature.dev.tasks]
+lint-py = "ruff check src && ruff format --check src"
+lint-just = "just --list --list-submodules"
+lint = { depends-on = ["lint-py", "lint-just"] }
+
+[tool.pixi.environments]
+dev = ["dev"]
+
 [tool.pixi.dependencies]
 just = ">=1.59.0,<2"
 gdal = ">=3.13.3,<4"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "D",  # pydocstyle
+    "E",  # pycodestyle
+    "W",
+    "F",  # Pyflakes
+    "UP",  # pyupgrade
+    "B",  # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "I",  # isort
+]
+ignore = ["D100", "D103", "D203", "D213", "D413"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["benchmark_datasets"]

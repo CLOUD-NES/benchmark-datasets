@@ -1,14 +1,13 @@
-# Build the CLOUD-NES datasets: `just <dataset>` builds all missing outputs, `just <dataset> <recipe> [args]` one.
-# See common.just for the BUCKET and FORCE environment variables.
+# Build the CLOUD-NES benchmark datasets: `just <dataset>` builds all missing outputs, `just <dataset> <recipe>` one step.
 
 set dotenv-load
 
-mod ahn4-dsm05 'datasets/ahn4-dsm05/justfile'
-mod bm-2024O-rgb 'datasets/bm-2024O-rgb/justfile'
-mod brp-2025 'datasets/brp-2025/justfile'
-mod knmi-tg1-5 'datasets/knmi-tg1-5/justfile'
-mod sage-geese 'datasets/sage-geese/justfile'
+mod ahn 'just/ahn.just'
 
 [private]
 default:
-    @{{just_executable()}} --justfile {{justfile()}} --list --list-submodules
+    @{{ just_executable() }} --justfile {{ justfile() }} --list --list-submodules
+
+# build all datasets
+all:
+    {{ just_executable() }} --justfile {{ justfile() }} ahn

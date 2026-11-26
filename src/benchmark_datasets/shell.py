@@ -1,14 +1,12 @@
+import logging
+import os
 import shlex
 import subprocess
-from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
-def run_cmd(template: str, context: dict[str, Any] | None = None) -> None:
-    """Render a command template and run it."""
-    context = {} if context is None else context
-    cmd = template.format(**context)
-    subprocess.run(
-        shlex.split(cmd),
-        check=True
-    )
-
+def run_cmd(args: list[str], env: dict[str, str] | None = None) -> None:
+    """Run a command, with extra environment variables on top of the current ones."""
+    logger.info(shlex.join(args))
+    subprocess.run(args, check=True, env={**os.environ, **(env or {})})
