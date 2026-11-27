@@ -38,9 +38,13 @@ benchmark_datasets = { path = ".", editable = true }
 [tool.pixi.tasks]
 
 [tool.pixi.feature.dev.dependencies]
-ruff = "*"
+ruff = ">=0.17.6,<0.18"
+pytest = ">=9.2.0,<10"
+ty = ">=0.0.112,<0.0.113"
 
 [tool.pixi.feature.dev.tasks]
+test = "pytest"
+ty = "ty check"
 lint-py = "ruff check src && ruff format --check src"
 lint-just = "just --list --list-submodules"
 lint = { depends-on = ["lint-py", "lint-just"] }
@@ -51,6 +55,13 @@ dev = ["dev"]
 [tool.pixi.dependencies]
 just = ">=1.59.0,<2"
 gdal = ">=3.13.3,<4"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
 
 [tool.ruff]
 line-length = 120
@@ -68,5 +79,14 @@ select = [
 ]
 ignore = ["D100", "D103", "D203", "D213", "D413"]
 
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/**" = [
+    "D102", # Missing docstring in public method
+    "D103", # Missing docstring in public function
+]
+
 [tool.ruff.lint.isort]
 known-first-party = ["benchmark_datasets"]
+
+[tool.ty]
+src.include = ["./src"]
