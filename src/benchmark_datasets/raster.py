@@ -1,26 +1,64 @@
-"""Build the AHN (Actueel Hoogtebestand Nederland) benchmark datasets.
+"""Build the tiled raster benchmark datasets: AHN (elevation) and BM (aerial images).
 
-Prefixes are directories and can contain the placeholders {bucket}, {asset} and {version}. Outputs that
-already exist are skipped, unless `overwrite` is set.
+Prefixes are directories and can contain the placeholders {bucket}, {asset} and {version} (for BM, the year).
+Outputs that already exist are skipped, unless `overwrite` is set.
 """
 
 import logging
 import os
+from dataclasses import dataclass
 from itertools import product
 
 import obstore
 import rustac
+from imagecodecs.zarr import JpegCodec
 
 from . import gdal, geozarr, virtual_zarr
 from .s3 import S3Config, exists, glob, obstore_store
 
 logger = logging.getLogger(__name__)
 
-STAC_HREF_TEMPLATE = "https://raw.githubusercontent.com/cloud-nes/ahn-stac/main/data/AHN{version}.parquet"
-PREFIX_ROOT = "s3://{bucket}/ahn"
-PREFIX_VERSION = PREFIX_ROOT + "/{asset}/{version}"
-PREFIX_RAW = PREFIX_VERSION + "/raw"
+STAC_HREF_TEMPLATE = "https://raw.githubusercontent.com/cloud-nes/ahn-stac/main/data/{name}{{version}}.parquet"
 TIFF_GLOB = "*.[tT][iI][fF]"
+
+
+@dataclass(frozen=True)
+class Dataset:
+    """A tiled raster dataset, with a STAC catalog per version (e.g. AHN4, BM2024)."""
+
+    name: str
+    prefix_root: str
+    bands: int = 1  # bands per raster, >1 are stored as last dimension in Zarr
+    masked: bool = True  # mask nodata as NaN (converts to float) in Zarr
+    zarr_serializer: object = None  # Zarr array-to-bytes codec (default: Zarr's)
+    zarr_per_version: bool = False  # one GeoZarr store per version (no version dim), in prefix_root/{version}
+
+    @property
+    def stac_href_template(self) -> str:
+        """URL of the STAC (geo)parquet catalog, with a {version} placeholder."""
+        return STAC_HREF_TEMPLATE.format(name=self.name)
+
+    @property
+    def prefix_version(self) -> str:
+        """Prefix of the outputs of a version of an asset."""
+        return self.prefix_root + "/{asset}/{version}"
+
+    @property
+    def prefix_raw(self) -> str:
+        """Prefix of the raw tiles of a version of an asset."""
+        return self.prefix_version + "/raw"
+
+
+AHN = Dataset("AHN", "s3://{bucket}/ahn")
+BM = Dataset(
+    "BM",
+    "s3://{bucket}/bm-hrl",
+    bands=3,
+    masked=False,
+    # quality as GDAL's JPEG default; the zarr-extensions codec requires (y, x, band) chunks, so a store per year
+    zarr_serializer=JpegCodec(quality=75, encoded_color_space="ycbcr", subsampling="4:2:0"),
+    zarr_per_version=True,
+)
 
 
 def variant_name(creation_options: dict[str, str]) -> str:
@@ -32,6 +70,7 @@ def variant_name(creation_options: dict[str, str]) -> str:
 
 
 async def retrieve(
+    dataset: Dataset,
     assets: list[str],
     versions: list[int],
     bbox: list[float],
@@ -39,12 +78,12 @@ async def retrieve(
     overwrite: bool = False,
     s3_config: S3Config | None = None,
 ) -> None:
-    """Retrieve raw AHN tiles within a bounding box (WGS84) using the AHN STAC catalogs."""
+    """Retrieve raw tiles within a bounding box (WGS84) using the STAC catalogs of the dataset."""
     s3_config = s3_config or S3Config.from_env()
     for asset, version in product(assets, versions):
-        dst_dir = _format(prefix_dst or PREFIX_RAW, asset, version, s3_config)
-        items = await rustac.search(STAC_HREF_TEMPLATE.format(version=version), bbox=bbox)
-        logger.info(f"AHN{version} {asset}: found {len(items)} items")
+        dst_dir = _format(prefix_dst or dataset.prefix_raw, asset, version, s3_config)
+        items = await rustac.search(dataset.stac_href_template.format(version=version), bbox=bbox)
+        logger.info(f"{dataset.name}{version} {asset}: found {len(items)} items")
         dst_store = obstore_store(dst_dir, s3_config)
         for item in items:
             if asset not in item["assets"]:
@@ -57,6 +96,7 @@ async def retrieve(
 
 
 def cog_tiles(
+    dataset: Dataset,
     assets: list[str],
     versions: list[int],
     creation_options: dict[str, str],
@@ -69,8 +109,8 @@ def cog_tiles(
     s3_config = s3_config or S3Config.from_env()
     variant = variant_name(creation_options)
     for asset, version in product(assets, versions):
-        src_dir = _format(prefix_src or PREFIX_RAW, asset, version, s3_config)
-        dst_dir = _format(prefix_dst or PREFIX_VERSION, asset, version, s3_config) + f"/{variant}"
+        src_dir = _format(prefix_src or dataset.prefix_raw, asset, version, s3_config)
+        dst_dir = _format(prefix_dst or dataset.prefix_version, asset, version, s3_config) + f"/{variant}"
         for src in glob(f"{src_dir}/{TIFF_GLOB}", s3_config):
             dst = f"{dst_dir}/{os.path.basename(src)}"
             if not _skip(dst, overwrite, s3_config):
@@ -78,6 +118,7 @@ def cog_tiles(
 
 
 def cog_mosaic(
+    dataset: Dataset,
     assets: list[str],
     versions: list[int],
     creation_options: dict[str, str],
@@ -90,14 +131,15 @@ def cog_mosaic(
     s3_config = s3_config or S3Config.from_env()
     variant = variant_name(creation_options)
     for asset, version in product(assets, versions):
-        src_dir = _format(prefix_src or PREFIX_RAW, asset, version, s3_config)
-        dst = _format(prefix_dst or PREFIX_VERSION, asset, version, s3_config) + f"/{variant}-mosaic.tif"
+        src_dir = _format(prefix_src or dataset.prefix_raw, asset, version, s3_config)
+        dst = _format(prefix_dst or dataset.prefix_version, asset, version, s3_config) + f"/{variant}-mosaic.tif"
         if not _skip(dst, overwrite, s3_config):
             srcs = _glob_tiffs(src_dir, s3_config)
             gdal.cog_mosaic(srcs, dst, creation_options=creation_options, s3_config=s3_config)
 
 
 def vrt_mosaic(
+    dataset: Dataset,
     assets: list[str],
     versions: list[int],
     creation_options: dict[str, str],
@@ -110,13 +152,14 @@ def vrt_mosaic(
     s3_config = s3_config or S3Config.from_env()
     variant = variant_name(creation_options)
     for asset, version in product(assets, versions):
-        src_dir = _format(prefix_src or PREFIX_VERSION + f"/{variant}", asset, version, s3_config)
-        dst = _format(prefix_dst or PREFIX_VERSION, asset, version, s3_config) + f"/{variant}-mosaic.vrt"
+        src_dir = _format(prefix_src or dataset.prefix_version + f"/{variant}", asset, version, s3_config)
+        dst = _format(prefix_dst or dataset.prefix_version, asset, version, s3_config) + f"/{variant}-mosaic.vrt"
         if not _skip(dst, overwrite, s3_config):
             gdal.vrt_mosaic(_glob_tiffs(src_dir, s3_config), dst, s3_config=s3_config)
 
 
 def virtual_zarr_store(
+    dataset: Dataset,
     assets: list[str],
     versions: list[int],
     creation_options: dict[str, str],
@@ -133,7 +176,7 @@ def virtual_zarr_store(
     """
     s3_config = s3_config or S3Config.from_env()
     variant = variant_name(creation_options) + ("-mosaic" if mosaic else "")
-    dst_dir = _format(prefix_dst or PREFIX_ROOT, None, None, s3_config)
+    dst_dir = _format(prefix_dst or dataset.prefix_root, None, None, s3_config)
     extensions = {"kerchunk-json": "kerchunk.json", "kerchunk-parquet": "kerchunk.parquet", "icechunk": "icechunk"}
     outputs = {
         fmt: f"{dst_dir}/{variant}-vzarr-{extensions[fmt]}"
@@ -144,7 +187,7 @@ def virtual_zarr_store(
         return
     datasets = {asset: {} for asset in assets}
     for asset, version in product(assets, versions):
-        src_dir = _format(prefix_src or PREFIX_VERSION, asset, version, s3_config)
+        src_dir = _format(prefix_src or dataset.prefix_version, asset, version, s3_config)
         srcs = [f"{src_dir}/{variant}.tif"] if mosaic else _glob_tiffs(f"{src_dir}/{variant}", s3_config)
         datasets[asset][version] = virtual_zarr.open_virtual_tiffs(srcs, name=asset, s3_config=s3_config)
     ds = virtual_zarr.stack_versions(datasets)
@@ -152,6 +195,7 @@ def virtual_zarr_store(
 
 
 def geozarr_store(
+    dataset: Dataset,
     assets: list[str],
     versions: list[int],
     creation_options: dict[str, str],
@@ -163,27 +207,44 @@ def geozarr_store(
     overwrite: bool = False,
     s3_config: S3Config | None = None,
 ) -> None:
-    """Build one GeoZarr store from the COG mosaics of a variant: a variable per asset, a version dimension.
+    """Build GeoZarr stores from the COG mosaics of a variant: a variable per asset, a version dimension.
 
-    All mosaics are assumed to share the same grid (extent, CRS, resolution).
+    With `dataset.zarr_per_version`, one store per version (in the {version} directory) without version dimension.
+    All mosaics of a store are assumed to share the same grid (extent, CRS, resolution).
     """
     s3_config = s3_config or S3Config.from_env()
     variant = variant_name(creation_options)
-    dst_dir = _format(prefix_dst or PREFIX_ROOT, None, None, s3_config)
-    dst = f"{dst_dir}/geozarr-c-1-{chunks}-{chunks}-s-1-{shards}-{shards}.zarr"
-    if _skip(dst, overwrite, s3_config):
-        return
-    sources = {
-        asset: {
-            version: _format(prefix_src or PREFIX_VERSION, asset, version, s3_config) + f"/{variant}-mosaic.tif"
-            for version in versions
+    per_version = dataset.zarr_per_version
+    band = f"-{dataset.bands}" if dataset.bands > 1 else ""
+    ver = "" if per_version else "1-"
+    name = f"geozarr-c-{ver}{chunks}-{chunks}{band}-s-{ver}{shards}-{shards}{band}.zarr"
+    prefix = prefix_dst or (dataset.prefix_root + "/{version}" if per_version else dataset.prefix_root)
+    for group in [[version] for version in versions] if per_version else [versions]:
+        dst = _format(prefix, None, group[0], s3_config) + f"/{name}"
+        if _skip(dst, overwrite, s3_config):
+            continue
+        sources = {
+            asset: {
+                version: _format(prefix_src or dataset.prefix_version, asset, version, s3_config)
+                + f"/{variant}-mosaic.tif"
+                for version in group
+            }
+            for asset in assets
         }
-        for asset in assets
-    }
-    geozarr.write(sources, dst, levels, chunks, shards, s3_config)
+        geozarr.write(
+            sources,
+            dst,
+            levels,
+            chunks,
+            shards,
+            dataset.masked,
+            dataset.zarr_serializer,
+            version_dim=not per_version,
+            s3_config=s3_config,
+        )
 
 
-def stac(assets: list[str], versions: list[int], s3_config: S3Config | None = None) -> None:
+def stac(dataset: Dataset, assets: list[str], versions: list[int], s3_config: S3Config | None = None) -> None:
     """Build STAC items/collections/catalogs (not implemented yet)."""
     logger.warning("STAC generation is not implemented yet, skipping")
 

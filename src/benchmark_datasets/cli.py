@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import click
 
-from . import ahn as _ahn
+from . import raster
 from .s3 import S3Config
 from .virtual_zarr import OUTPUT_FORMATS
 
@@ -12,17 +12,18 @@ PREFIX_HELP = "Placeholders {bucket}, {asset} and {version} are filled in."
 
 
 @dataclass
-class AHNContext:
-    """Options shared by all AHN commands."""
+class DatasetContext:
+    """Options shared by all commands of a dataset."""
 
     s3_config: S3Config
+    dataset: raster.Dataset
     assets: list[str]
     versions: list[int]
     overwrite: bool
 
     def kwargs(self) -> dict:
-        """Keyword arguments common to all functions in the ahn module."""
-        return {"assets": self.assets, "versions": self.versions, "s3_config": self.s3_config}
+        """Keyword arguments common to all functions in the raster module."""
+        return {"dataset": self.dataset, "assets": self.assets, "versions": self.versions, "s3_config": self.s3_config}
 
 
 def _parse_creation_options(ctx, param, values: tuple[str, ...]) -> dict[str, str]:
@@ -46,6 +47,7 @@ creation_options = click.option(
 )
 prefix_src = click.option("--prefix-src", help=f"Prefix of the input data. {PREFIX_HELP}")
 prefix_dst = click.option("--prefix-dst", help=f"Prefix of the output data. {PREFIX_HELP}")
+overwrite = click.option("--overwrite", is_flag=True, help="Rebuild outputs that already exist.")
 
 
 @click.group()
@@ -87,32 +89,44 @@ def cli(
     type=click.IntRange(2, 6),
     help="AHN version, can be repeated.",
 )
-@click.option("--overwrite", is_flag=True, help="Rebuild outputs that already exist.")
+@overwrite
 @click.pass_context
 def ahn(ctx, assets: tuple[str, ...], versions: tuple[int, ...], overwrite: bool) -> None:
     """Actueel Hoogtebestand Nederland (AHN)."""
-    ctx.obj = AHNContext(ctx.obj, list(assets), list(versions), overwrite)
+    ctx.obj = DatasetContext(ctx.obj, raster.AHN, list(assets), list(versions), overwrite)
 
 
-@ahn.command()
+@cli.group()
+@click.option(
+    "--asset", "assets", multiple=True, required=True, type=click.Choice(["RGB", "CIR"]), help="Can be repeated."
+)
+@click.option("--year", "years", multiple=True, required=True, type=click.IntRange(2021, 2026), help="Can be repeated.")
+@overwrite
+@click.pass_context
+def bm(ctx, assets: tuple[str, ...], years: tuple[int, ...], overwrite: bool) -> None:
+    """Beeldmateriaal (BM) high-resolution aerial images. The year is the {version} placeholder of prefixes."""
+    ctx.obj = DatasetContext(ctx.obj, raster.BM, list(assets), list(years), overwrite)
+
+
+@click.command()
 @click.option(
     "--bbox", nargs=4, type=float, required=True, metavar="MINX MINY MAXX MAXY", help="Bounding box (WGS84 lon/lat)."
 )
 @prefix_dst
 @click.pass_obj
-def retrieve(obj: AHNContext, bbox: tuple[float, ...], prefix_dst: str | None) -> None:
-    """Retrieve raw tiles within a bounding box from the AHN STAC catalog."""
-    asyncio.run(_ahn.retrieve(**obj.kwargs(), bbox=list(bbox), prefix_dst=prefix_dst, overwrite=obj.overwrite))
+def retrieve(obj: DatasetContext, bbox: tuple[float, ...], prefix_dst: str | None) -> None:
+    """Retrieve raw tiles within a bounding box from the STAC catalogs."""
+    asyncio.run(raster.retrieve(**obj.kwargs(), bbox=list(bbox), prefix_dst=prefix_dst, overwrite=obj.overwrite))
 
 
-@ahn.command()
+@click.command()
 @creation_options
 @prefix_src
 @prefix_dst
 @click.pass_obj
-def cog_tiles(obj: AHNContext, creation_options: dict, prefix_src: str | None, prefix_dst: str | None) -> None:
+def cog_tiles(obj: DatasetContext, creation_options: dict, prefix_src: str | None, prefix_dst: str | None) -> None:
     """Convert each raw tile to a COG."""
-    _ahn.cog_tiles(
+    raster.cog_tiles(
         **obj.kwargs(),
         creation_options=creation_options,
         prefix_src=prefix_src,
@@ -121,14 +135,14 @@ def cog_tiles(obj: AHNContext, creation_options: dict, prefix_src: str | None, p
     )
 
 
-@ahn.command()
+@click.command()
 @creation_options
 @prefix_src
 @prefix_dst
 @click.pass_obj
-def cog_mosaic(obj: AHNContext, creation_options: dict, prefix_src: str | None, prefix_dst: str | None) -> None:
+def cog_mosaic(obj: DatasetContext, creation_options: dict, prefix_src: str | None, prefix_dst: str | None) -> None:
     """Mosaic the raw tiles into a single COG."""
-    _ahn.cog_mosaic(
+    raster.cog_mosaic(
         **obj.kwargs(),
         creation_options=creation_options,
         prefix_src=prefix_src,
@@ -137,14 +151,14 @@ def cog_mosaic(obj: AHNContext, creation_options: dict, prefix_src: str | None, 
     )
 
 
-@ahn.command()
+@click.command()
 @creation_options
 @prefix_src
 @prefix_dst
 @click.pass_obj
-def vrt_mosaic(obj: AHNContext, creation_options: dict, prefix_src: str | None, prefix_dst: str | None) -> None:
+def vrt_mosaic(obj: DatasetContext, creation_options: dict, prefix_src: str | None, prefix_dst: str | None) -> None:
     """Mosaic the COG tiles of the variant defined by the creation options into a VRT."""
-    _ahn.vrt_mosaic(
+    raster.vrt_mosaic(
         **obj.kwargs(),
         creation_options=creation_options,
         prefix_src=prefix_src,
@@ -153,7 +167,7 @@ def vrt_mosaic(obj: AHNContext, creation_options: dict, prefix_src: str | None, 
     )
 
 
-@ahn.command()
+@click.command()
 @creation_options
 @click.option("--mosaic", is_flag=True, help="Reference the COG mosaics instead of the COG tiles.")
 @click.option(
@@ -167,7 +181,7 @@ def vrt_mosaic(obj: AHNContext, creation_options: dict, prefix_src: str | None, 
 @prefix_dst
 @click.pass_obj
 def virtual_zarr(
-    obj: AHNContext,
+    obj: DatasetContext,
     creation_options: dict,
     mosaic: bool,
     output_formats: tuple[str, ...],
@@ -175,7 +189,7 @@ def virtual_zarr(
     prefix_dst: str | None,
 ) -> None:
     """Build one virtual Zarr store from the COGs of the given variant (assets as variables, versions as dim)."""
-    _ahn.virtual_zarr_store(
+    raster.virtual_zarr_store(
         **obj.kwargs(),
         creation_options=creation_options,
         mosaic=mosaic,
@@ -186,7 +200,7 @@ def virtual_zarr(
     )
 
 
-@ahn.command()
+@click.command()
 @creation_options
 @click.option("--chunks", type=int, default=400, show_default=True, help="Chunk size (x and y).")
 @click.option("--shards", type=int, default=400, show_default=True, help="Shard size (x and y).")
@@ -195,7 +209,7 @@ def virtual_zarr(
 @prefix_dst
 @click.pass_obj
 def geozarr(
-    obj: AHNContext,
+    obj: DatasetContext,
     creation_options: dict,
     chunks: int,
     shards: int,
@@ -203,8 +217,8 @@ def geozarr(
     prefix_src: str | None,
     prefix_dst: str | None,
 ) -> None:
-    """Build one GeoZarr store from the COG mosaics of the given variant (assets as variables, versions as dim)."""
-    _ahn.geozarr_store(
+    """Build GeoZarr store(s) from the COG mosaics of the given variant (assets as variables, versions as dim)."""
+    raster.geozarr_store(
         **obj.kwargs(),
         creation_options=creation_options,
         chunks=chunks,
@@ -216,8 +230,15 @@ def geozarr(
     )
 
 
-@ahn.command()
+@click.command()
 @click.pass_obj
-def stac(obj: AHNContext) -> None:
+def stac(obj: DatasetContext) -> None:
     """Build STAC items, collections and catalogs (not implemented yet)."""
-    _ahn.stac(**obj.kwargs())
+    raster.stac(**obj.kwargs())
+
+
+for command in (retrieve, cog_tiles, cog_mosaic, vrt_mosaic, geozarr):
+    ahn.add_command(command)
+    bm.add_command(command)
+ahn.add_command(virtual_zarr)
+ahn.add_command(stac)

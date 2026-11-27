@@ -3303,6 +3303,7 @@ packages:
   - click>=8.5.1,<9
   - rioxarray>=0.25.1
   - dask
+  - imagecodecs>=2026.11.11
   requires_python: '>=3.11'
 - pypi: https://files.pythonhosted.org/packages/0c/d5/c5db1ea3394c6e1732fb3286b3bd878b59507a8f77d32a2cebda7d7b7cd4/donfig-0.8.1.post1-py3-none-any.whl
   name: donfig

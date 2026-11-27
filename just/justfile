@@ -3,6 +3,7 @@
 set dotenv-load
 
 mod ahn
+mod bm
 
 [private]
 default:
@@ -11,3 +12,4 @@ default:
 # build all datasets
 all:
     {{ just_executable() }} --justfile {{ justfile() }} ahn
+    {{ just_executable() }} --justfile {{ justfile() }} bm

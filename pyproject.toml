@@ -16,6 +16,7 @@ dependencies = [
     "click>=8.5.1,<9",
     "rioxarray>=0.25.1",
     "dask",
+    "imagecodecs>=2026.11.11",
 ]
 name = "benchmark-datasets"
 requires-python = ">= 3.11"
