@@ -71,8 +71,6 @@ def _write_level(da, crs, dst, group, name, factor, chunks, shards, storage_opti
     ds: xarray.Dataset = lvl.to_dataset(name=name)
     ds = ds.rio.write_crs(crs, convention=Convention.ZARR)
     ds = ds.rio.write_transform(ds.rio.transform(recalc=True), convention=Convention.ZARR)
-    # rioxarray 0.24 writes rasterio's default WKT1 under proj:wkt2; store actual WKT2.
-    ds.attrs["proj:wkt2"] = crs.to_wkt(version="WKT2_2019")
     ds = ds.chunk({"x": shards, "y": shards})
     ds.to_zarr(
         dst,

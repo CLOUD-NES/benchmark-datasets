@@ -14,7 +14,7 @@ dependencies = [
     "obspec-utils>=0.9.0,<0.10",
     "geozarr-toolkit>=0.1.2,<0.2",
     "click>=8.5.1,<9",
-    "rioxarray",
+    "rioxarray>=0.25.1",
     "dask",
 ]
 name = "benchmark-datasets"
