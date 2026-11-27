@@ -52,7 +52,7 @@ class Dataset:
 AHN = Dataset("AHN", "s3://{bucket}/ahn")
 BM = Dataset(
     "BM",
-    "s3://{bucket}/bm-hrl",
+    "s3://{bucket}/bm",
     bands=3,
     masked=False,
     # quality as GDAL's JPEG default; the zarr-extensions codec requires (y, x, band) chunks, so a store per year
