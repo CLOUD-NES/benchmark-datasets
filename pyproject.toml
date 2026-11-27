@@ -45,7 +45,7 @@ ty = ">=0.0.112,<0.0.113"
 [tool.pixi.feature.dev.tasks]
 test = "pytest"
 ty = "ty check"
-lint-py = "ruff check src && ruff format --check src"
+lint-py = "ruff check src tests && ruff format --check src tests"
 lint-just = "just --list --list-submodules"
 lint = { depends-on = ["lint-py", "lint-just"] }
 
