@@ -53,7 +53,7 @@ def write(
         for i, factor in enumerate(factors):
             attrs = _write_level(ds, crs, dst, str(i), factor, chunks, shards, storage_options)
             layout.append(_layout_entry(attrs, i, factors))
-    root = zarr.open_group(dst, mode="a", zarr_format=33, storage_options=storage_options)
+    root = zarr.open_group(dst, mode="a", zarr_format=3, storage_options=storage_options)
     _write_root_attrs(root, layout)
     _validate(root, len(factors))
     zarr.consolidate_metadata(root.store)
