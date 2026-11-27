@@ -1,5 +1,5 @@
 # Actueel Hoogtebestand Nederland (AHN): `just ahn` builds all outputs, `just ahn <recipe>` a single step.
-# Outputs that already exist are skipped: set FORCE=1 to rebuild them. Set BUCKET to choose the bucket.
+# Outputs that already exist are skipped. Set BUCKET to choose the bucket.
 
 set dotenv-load
 
