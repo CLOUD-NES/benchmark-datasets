@@ -2,7 +2,7 @@
 
 set dotenv-load
 
-mod ahn 'just/ahn.just'
+mod ahn
 
 [private]
 default:
