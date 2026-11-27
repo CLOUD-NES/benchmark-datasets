@@ -4,7 +4,6 @@ Prefixes are directories and can contain the placeholders {bucket}, {asset} and 
 already exist are skipped, unless `overwrite` is set.
 """
 
-import asyncio
 import logging
 import os
 from itertools import product
@@ -32,7 +31,7 @@ def variant_name(creation_options: dict[str, str]) -> str:
     return "-".join(["COG"] + [creation_options[key] for key in sorted(creation_options)])
 
 
-def retrieve(
+async def retrieve(
     assets: list[str],
     versions: list[int],
     bbox: list[float],
@@ -44,7 +43,7 @@ def retrieve(
     s3_config = s3_config or S3Config.from_env()
     for asset, version in product(assets, versions):
         dst_dir = _format(prefix_dst or PREFIX_RAW, asset, version, s3_config)
-        items = asyncio.run(rustac.search(STAC_HREF_TEMPLATE.format(version=version), bbox=bbox))
+        items = await rustac.search(STAC_HREF_TEMPLATE.format(version=version), bbox=bbox)
         logger.info(f"AHN{version} {asset}: found {len(items)} items")
         dst_store = obstore_store(dst_dir, s3_config)
         for item in items:
@@ -53,8 +52,8 @@ def retrieve(
             src_dir, filename = os.path.split(item["assets"][asset]["href"])
             if _skip(f"{dst_dir}/{filename}", overwrite, s3_config):
                 continue
-            resp = obstore.get(obstore_store(src_dir, s3_config), filename)
-            obstore.put(dst_store, filename, resp)
+            resp = await obstore.get_async(obstore_store(src_dir), filename)
+            await obstore.put_async(dst_store, filename, resp)
 
 
 def cog_tiles(

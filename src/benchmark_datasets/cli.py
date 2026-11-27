@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -101,7 +102,14 @@ def ahn(ctx, assets: tuple[str, ...], versions: tuple[int, ...], overwrite: bool
 @click.pass_obj
 def retrieve(obj: AHNContext, bbox: tuple[float, ...], prefix_dst: str | None) -> None:
     """Retrieve raw tiles within a bounding box from the AHN STAC catalog."""
-    _ahn.retrieve(**obj.kwargs(), bbox=list(bbox), prefix_dst=prefix_dst, overwrite=obj.overwrite)
+    asyncio.run(
+        _ahn.retrieve(
+            **obj.kwargs(),
+            bbox=list(bbox),
+            prefix_dst=prefix_dst,
+            overwrite=obj.overwrite
+        )
+    )
 
 
 @ahn.command()
