@@ -127,7 +127,10 @@ def virtual_zarr_store(
     overwrite: bool = False,
     s3_config: S3Config | None = None,
 ) -> None:
-    """Build one virtual Zarr store for the COG tiles (or mosaic) of a variant, with {asset}/{version} groups."""
+    """Build one virtual Zarr store for the COG tiles (or mosaic) of a variant: a variable per asset, a version dim.
+
+    All rasters are assumed to share the same grid (extent, CRS, resolution).
+    """
     s3_config = s3_config or S3Config.from_env()
     variant = variant_name(creation_options) + ("-mosaic" if mosaic else "")
     dst_dir = _format(prefix_dst or PREFIX_ROOT, None, None, s3_config)
@@ -139,12 +142,13 @@ def virtual_zarr_store(
     }
     if not outputs:
         return
-    datasets = {}
+    datasets = {asset: {} for asset in assets}
     for asset, version in product(assets, versions):
         src_dir = _format(prefix_src or PREFIX_VERSION, asset, version, s3_config)
         srcs = [f"{src_dir}/{variant}.tif"] if mosaic else _glob_tiffs(f"{src_dir}/{variant}", s3_config)
-        datasets[f"{asset}/{version}"] = virtual_zarr.open_virtual_tiffs(srcs, name=asset, s3_config=s3_config)
-    virtual_zarr.write(datasets, outputs, s3_config=s3_config, message=f"add virtual references for {variant}")
+        datasets[asset][version] = virtual_zarr.open_virtual_tiffs(srcs, name=asset, s3_config=s3_config)
+    ds = virtual_zarr.stack_versions(datasets)
+    virtual_zarr.write(ds, outputs, s3_config=s3_config, message=f"add virtual references for {variant}")
 
 
 def geozarr_store(
@@ -159,17 +163,24 @@ def geozarr_store(
     overwrite: bool = False,
     s3_config: S3Config | None = None,
 ) -> None:
-    """Build one GeoZarr store from the COG mosaics of a variant, with {asset}/{version} groups."""
+    """Build one GeoZarr store from the COG mosaics of a variant: a variable per asset, a version dimension.
+
+    All mosaics are assumed to share the same grid (extent, CRS, resolution).
+    """
     s3_config = s3_config or S3Config.from_env()
     variant = variant_name(creation_options)
     dst_dir = _format(prefix_dst or PREFIX_ROOT, None, None, s3_config)
-    dst = f"{dst_dir}/geozarr-c-{chunks}-{chunks}-s-{shards}-{shards}.zarr"
+    dst = f"{dst_dir}/geozarr-c-1-{chunks}-{chunks}-s-1-{shards}-{shards}.zarr"
     if _skip(dst, overwrite, s3_config):
         return
-    for asset, version in product(assets, versions):
-        src = _format(prefix_src or PREFIX_VERSION, asset, version, s3_config) + f"/{variant}-mosaic.tif"
-        # ponytail: one variable per group, named after the asset; assets of one version could share a group
-        geozarr.write({f"{asset}/{version}": src}, dst, asset, levels, chunks, shards, s3_config)
+    sources = {
+        asset: {
+            version: _format(prefix_src or PREFIX_VERSION, asset, version, s3_config) + f"/{variant}-mosaic.tif"
+            for version in versions
+        }
+        for asset in assets
+    }
+    geozarr.write(sources, dst, levels, chunks, shards, s3_config)
 
 
 def stac(assets: list[str], versions: list[int], s3_config: S3Config | None = None) -> None:

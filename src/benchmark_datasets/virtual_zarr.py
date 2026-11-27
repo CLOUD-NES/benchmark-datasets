@@ -1,16 +1,19 @@
 """Build virtual Zarr stores (kerchunk JSON/Parquet, Icechunk) from (Cloud-Optimized) GeoTIFFs.
 
 Adapted from https://github.com/CLOUD-NES/ahn-virtual-zarr (notebooks/build-virtual-zarr-dsm.ipynb).
-Only the highest resolution (first IFD) is referenced. A store can hold multiple groups (e.g. "DSM05/4").
+Only the highest resolution (first IFD) is referenced. A store holds one variable per asset, with versions
+stacked along a "version" dimension (all rasters are assumed to share the same grid).
 """
 
 import json
+import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
 import icechunk
 import numpy as np
 import obstore.store
+import pandas as pd
 import xarray
 from kerchunk.df import refs_to_dataframe
 from obspec_utils.registry import ObjectStoreRegistry
@@ -36,22 +39,43 @@ def open_virtual_tiffs(uris: list[str], name: str, s3_config: S3Config | None = 
     return vds.vz.rename_paths(lambda p: public_href(p, s3_config))
 
 
+def stack_versions(datasets: dict[str, dict[int, xarray.Dataset]]) -> xarray.Dataset:
+    """Combine virtual datasets in one: a variable per name, versions stacked along a "version" dimension.
+
+    Args:
+        datasets: virtual datasets (as from `open_virtual_tiffs`), keyed by variable name and version.
+    """
+    return xarray.Dataset(
+        {
+            name: xarray.concat(
+                [versions[v][name] for v in sorted(versions)],
+                dim=pd.Index(sorted(versions), name="version"),
+                join="exact",  # fail loudly if the grids differ after all
+                coords="minimal",
+                compat="override",
+                combine_attrs="drop_conflicts",
+            )
+            for name, versions in datasets.items()
+        }
+    )
+
+
 def write(
-    datasets: dict[str, xarray.Dataset],
+    ds: xarray.Dataset,
     outputs: dict[str, str],
     s3_config: S3Config | None = None,
     message: str = "add virtual references",
 ) -> None:
-    """Persist virtual datasets, one per group, in the requested output formats.
+    """Persist a virtual dataset in the requested output formats.
 
     Args:
-        datasets: virtual datasets, keyed by group path (e.g. "DSM05/4").
+        ds: virtual dataset.
         outputs: destination URIs, keyed by output format (see OUTPUT_FORMATS).
         s3_config: S3 configuration options and credentials.
         message: Icechunk commit message.
     """
     if "kerchunk-json" in outputs or "kerchunk-parquet" in outputs:
-        refs = merge_kerchunk_refs({g: ds.vz.to_kerchunk(format="dict") for g, ds in datasets.items()})
+        refs = ds.vz.to_kerchunk(format="dict")
         if "kerchunk-json" in outputs:
             uri = outputs["kerchunk-json"]
             filesystem(uri, s3_config).pipe(uri, json.dumps(refs).encode())
@@ -60,27 +84,17 @@ def write(
             remove(uri, s3_config)
             refs_to_dataframe(refs, uri, storage_options=filesystem(uri, s3_config).storage_options)
     if "icechunk" in outputs:
-        sample_href = _first_chunk_href(next(iter(datasets.values())))
-        repo = create_icechunk_repo(outputs["icechunk"], sample_href, s3_config)
+        repo = create_icechunk_repo(outputs["icechunk"], _chunk_prefix(ds), s3_config)
         session = repo.writable_session("main")
-        for group, ds in datasets.items():
-            ds.vz.to_icechunk(session.store, group=group)
+        ds.vz.to_icechunk(session.store)
         session.commit(message)
 
 
-def merge_kerchunk_refs(refs: dict[str, dict]) -> dict:
-    """Merge kerchunk references of multiple datasets in a single store, one group per dataset."""
-    merged = {".zgroup": json.dumps({"zarr_format": 2})}
-    for group, group_refs in refs.items():
-        parts = group.strip("/").split("/")
-        for i in range(1, len(parts)):  # intermediate groups
-            merged["/".join(parts[:i] + [".zgroup"])] = json.dumps({"zarr_format": 2})
-        merged |= {f"{group}/{key}": value for key, value in group_refs["refs"].items()}
-    return {"version": 1, "refs": merged}
+def create_icechunk_repo(uri: str, chunk_prefix: str, s3_config: S3Config | None = None) -> icechunk.Repository:
+    """Create an Icechunk repository whose virtual chunks (under `chunk_prefix`) are read anonymously over HTTP(S).
 
-
-def create_icechunk_repo(uri: str, chunk_href: str, s3_config: S3Config | None = None) -> icechunk.Repository:
-    """Create an Icechunk repository whose virtual chunks are read anonymously over HTTP(S) (or locally)."""
+    Local virtual chunks (file:// prefix) are also supported.
+    """
     remove(uri, s3_config)
     split = urlsplit(uri)
     if split.scheme == "s3":
@@ -98,10 +112,8 @@ def create_icechunk_repo(uri: str, chunk_href: str, s3_config: S3Config | None =
     else:
         storage = icechunk.local_filesystem_storage(uri)
 
-    prefix = f"{_store_root(chunk_href)}/"
-    if prefix == "file:///":
-        # icechunk wants a path in file:// prefixes: use the directory of the referenced files
-        prefix = chunk_href.rsplit("/", 1)[0] + "/"
+    prefix = chunk_prefix
+    if urlsplit(prefix).scheme == "file":
         store, credentials = (
             icechunk.local_filesystem_store(urlsplit(prefix).path),
             icechunk.Credentials.LocalFileSystemAccess(),
@@ -153,9 +165,18 @@ def _registry_store(url: str, s3_config: S3Config | None) -> obstore.store.Objec
     return obstore.store.LocalStore() if root == "file://" else obstore_store(root, s3_config)
 
 
-def _first_chunk_href(ds: xarray.Dataset) -> str:
-    """Path of one of the files referenced by the virtual dataset."""
-    for var in ds.data_vars.values():
-        manifest = var.data.manifest
-        return str(next(p for p in np.asarray(manifest._paths).ravel() if p))
-    raise ValueError("No virtual variable found")
+def _chunk_prefix(ds: xarray.Dataset) -> str:
+    """URL prefix of all the files referenced by the virtual dataset, for the Icechunk virtual chunk container.
+
+    For remote files, scheme and host (e.g. https://objectstore.example.com/); for local files, the deepest
+    common directory (icechunk wants a path in file:// prefixes).
+    """
+    paths = {str(p) for var in ds.data_vars.values() for p in np.asarray(var.data.manifest._paths).ravel() if p}
+    if not paths:
+        raise ValueError("No virtual references found")
+    roots = {_store_root(p) for p in paths}
+    if len(roots) > 1:
+        raise ValueError(f"Virtual references from multiple locations are not supported: {roots}")
+    if roots == {"file://"}:
+        return Path(os.path.commonpath([os.path.dirname(urlsplit(p).path) for p in paths])).as_uri() + "/"
+    return f"{roots.pop()}/"

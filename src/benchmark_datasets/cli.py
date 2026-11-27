@@ -102,14 +102,7 @@ def ahn(ctx, assets: tuple[str, ...], versions: tuple[int, ...], overwrite: bool
 @click.pass_obj
 def retrieve(obj: AHNContext, bbox: tuple[float, ...], prefix_dst: str | None) -> None:
     """Retrieve raw tiles within a bounding box from the AHN STAC catalog."""
-    asyncio.run(
-        _ahn.retrieve(
-            **obj.kwargs(),
-            bbox=list(bbox),
-            prefix_dst=prefix_dst,
-            overwrite=obj.overwrite
-        )
-    )
+    asyncio.run(_ahn.retrieve(**obj.kwargs(), bbox=list(bbox), prefix_dst=prefix_dst, overwrite=obj.overwrite))
 
 
 @ahn.command()
@@ -181,7 +174,7 @@ def virtual_zarr(
     prefix_src: str | None,
     prefix_dst: str | None,
 ) -> None:
-    """Build one virtual Zarr store for all assets/versions, from the COGs of the given variant."""
+    """Build one virtual Zarr store from the COGs of the given variant (assets as variables, versions as dim)."""
     _ahn.virtual_zarr_store(
         **obj.kwargs(),
         creation_options=creation_options,
@@ -210,7 +203,7 @@ def geozarr(
     prefix_src: str | None,
     prefix_dst: str | None,
 ) -> None:
-    """Build one GeoZarr store for all assets/versions, from the COG mosaics of the given variant."""
+    """Build one GeoZarr store from the COG mosaics of the given variant (assets as variables, versions as dim)."""
     _ahn.geozarr_store(
         **obj.kwargs(),
         creation_options=creation_options,
