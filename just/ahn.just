@@ -40,7 +40,7 @@ virtual-zarr: cog-tiles cog-mosaic
 
 # GeoZarr store
 geozarr: cog-mosaic
-    {{ bench }} geozarr {{ co_zstd }} --chunks 400 --shards 400 --level 2 --level 4 --level 8
+    {{ bench }} geozarr {{ co_zstd }} --chunks 400 --shards 4000 --level 2 --level 4 --level 8
 
 # STAC items, collections and catalogs
 stac:
